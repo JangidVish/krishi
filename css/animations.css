@@ -1,0 +1,188 @@
+/* Animations specific to the welcome screen */
+.welcome-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    text-align: center;
+    overflow: hidden;
+    position: relative;
+    background: linear-gradient(135deg, var(--background-color) 0%, #c8e6c9 100%);
+}
+
+.welcome-title {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    animation: fadeInDown 1s ease-out;
+    z-index: 10;
+}
+
+.welcome-subtitle {
+    font-size: 1.2rem;
+    color: var(--text-light);
+    margin-bottom: 3rem;
+    animation: fadeIn 1.5s ease-out;
+    z-index: 10;
+}
+
+/* Farm animation area */
+.farm-scene {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    margin-bottom: 3rem;
+    overflow: hidden;
+    border-bottom: 20px solid #795548;
+    /* Soil bottom */
+    background: transparent;
+}
+
+/* Soil Bed lines */
+.soil-bed {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 40px;
+    background: repeating-linear-gradient(90deg,
+            #5d4037,
+            #5d4037 20px,
+            #4e342e 20px,
+            #4e342e 40px);
+    border-top: 5px solid #3e2723;
+}
+
+/* Tractor Animation */
+.tractor-wrapper {
+    position: absolute;
+    bottom: 40px;
+    right: -150px;
+    /* Start outside screen */
+    width: 120px;
+    height: 80px;
+    background-image: url('../assets/tractor.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: bottom;
+    z-index: 5;
+    animation: moveTractor 10s linear infinite;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+}
+
+.planter-attachment {
+    width: 40px;
+    height: 30px;
+    background: #424242;
+    border-radius: 4px;
+    position: absolute;
+    left: -20px;
+    /* Behind tractor */
+    bottom: 0;
+    border-bottom-left-radius: 15px;
+}
+
+/* The trail of saplings */
+.sapling-trail {
+    position: absolute;
+    bottom: 40px;
+    left: 0;
+    width: 100%;
+    height: 40px;
+    display: flex;
+    justify-content: flex-end;
+    /* Align right since tractor moves right-to-left */
+    padding-right: 150px;
+    /* Offset to start where tractor starts */
+    box-sizing: border-box;
+}
+
+.sapling {
+    width: 30px;
+    height: 30px;
+    background-image: url('../assets/sapling.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: bottom;
+    opacity: 0;
+    margin-left: 50px;
+    /* Distance between plants */
+    transform: scale(0);
+}
+
+/* We'll use JS to add animation delay to each sapling so they pop up as tractor passes */
+.sapling.sprout {
+    animation: sproutUp 0.5s ease-out forwards;
+}
+
+/* Keyframes */
+@keyframes moveTractor {
+    0% {
+        right: -150px;
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-2px);
+        /* Slight bumpiness */
+    }
+
+    100% {
+        right: 110%;
+        /* Move completely off screen */
+        transform: translateY(0);
+    }
+}
+
+@keyframes sproutUp {
+    0% {
+        opacity: 0;
+        transform: scale(0) translateY(10px);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.2) translateY(-2px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .welcome-title {
+        font-size: 2rem;
+        padding: 0 1rem;
+    }
+
+    .sapling {
+        margin-left: 30px;
+    }
+}

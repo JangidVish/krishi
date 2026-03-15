@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live View – Krishisarthi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --green-dark:   #1b4332;
+      --green:        #2d6a4f;
+      --green-mid:    #40916c;
+      --green-light:  #74c69d;
+      --leaf:         #b7e4c7;
+      --sun:          #f9c74f;
+      --cream:        #fefae0;
+      --bg:           #060e09;
+      --bg-card:      rgba(27,67,50,0.3);
+      --border:       rgba(116,198,157,0.12);
+      --border-hover: rgba(116,198,157,0.3);
+      --error:        #ef5350;
+      --error-bg:     rgba(239,83,80,0.1);
+      --error-border: rgba(239,83,80,0.25);
+      --success:      #66bb6a;
+      --success-bg:   rgba(102,187,106,0.1);
+      --success-border:rgba(102,187,106,0.25);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--cream);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Grain */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0; opacity: 0.35;
+    }
+
+    /* Ambient glow */
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -10%; right: -5%;
+      width: 50%; height: 50%;
+      background: radial-gradient(ellipse, rgba(45,106,79,0.07) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 2rem;
+      background: rgba(6,14,9,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 0.6rem;
+      text-decoration: none;
+      font-family: 'Playfair Display', serif;
+      font-size: 1.35rem; font-weight: 700;
+      color: var(--leaf); letter-spacing: -0.01em;
+    }
+
+    .logo-dot {
+      width: 6px; height: 6px;
+      background: var(--sun); border-radius: 50%;
+      box-shadow: 0 0 8px var(--sun);
+      animation: dotPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes dotPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(0.7); }
+    }
+
+    nav { display: flex; gap: 0.5rem; }
+
+    .nav-btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.5rem 1.1rem; border-radius: 99px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem; font-weight: 500;
+      text-decoration: none; cursor: pointer;
+      border: 1px solid var(--border);
+      background: rgba(116,198,157,0.06);
+      color: var(--green-light);
+      transition: all 0.25s ease;
+    }
+
+    .nav-btn:hover {
+      background: rgba(116,198,157,0.14);
+      border-color: var(--border-hover);
+      color: var(--leaf);
+      transform: translateY(-1px);
+    }
+
+    /* ── MAIN ── */
+    main {
+      position: relative; z-index: 1;
+      flex: 1;
+      max-width: 1300px; margin: 0 auto;
+      padding: 2.5rem 2rem 4rem; width: 100%;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      margin-bottom: 2rem;
+      display: flex; align-items: flex-start; justify-content: space-between;
+      flex-wrap: wrap; gap: 1rem;
+      animation: fadeUp 0.6s ease-out both;
+    }
+
+    .page-header-left {}
+
+    .page-label {
+      font-size: 0.75rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--green-mid);
+      margin-bottom: 0.4rem;
+    }
+
+    .page-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 700; color: var(--cream);
+      display: flex; align-items: center; gap: 0.75rem;
+      line-height: 1.1;
+    }
+
+    .title-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, var(--green), var(--green-dark));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem;
+      box-shadow: 0 4px 16px rgba(45,106,79,0.4);
+      flex-shrink: 0;
+    }
+
+    .page-sub {
+      margin-top: 0.5rem;
+      font-size: 0.92rem;
+      color: rgba(254,250,224,0.45); font-weight: 300;
+    }
+
+    /* Live indicator */
+    .live-badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      background: rgba(102,187,106,0.1);
+      border: 1px solid rgba(102,187,106,0.25);
+      padding: 0.3rem 0.9rem; border-radius: 99px;
+      font-size: 0.78rem; font-weight: 600;
+      color: var(--success); letter-spacing: 0.05em;
+      margin-left: 0.5rem;
+    }
+
+    .live-dot {
+      width: 7px; height: 7px;
+      background: var(--success); border-radius: 50%;
+      animation: livePulse 1.4s ease-in-out infinite;
+      box-shadow: 0 0 6px var(--success);
+    }
+
+    @keyframes livePulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50%       { transform: scale(1.4); opacity: 0.6; }
+    }
+
+    /* Legend pills */
+    .legend-row {
+      display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;
+      align-self: flex-end; padding-bottom: 0.25rem;
+    }
+
+    .legend-pill {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.35rem 0.85rem;
+      border-radius: 99px;
+      font-size: 0.8rem; font-weight: 500;
+    }
+
+    .legend-pill.planted {
+      background: var(--success-bg);
+      border: 1px solid var(--success-border);
+      color: var(--success);
+    }
+
+    .legend-pill.missed {
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+      color: var(--error);
+    }
+
+    .legend-pill.empty {
+      background: rgba(116,198,157,0.05);
+      border: 1px solid var(--border);
+      color: rgba(254,250,224,0.35);
+    }
+
+    .legend-swatch {
+      width: 10px; height: 10px; border-radius: 3px;
+    }
+
+    /* ── STATS STRIP ── */
+    .stats-strip {
+      display: flex; gap: 1rem; flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+      animation: fadeUp 0.6s 0.1s ease-out both;
+    }
+
+    .stat-pill {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.6rem 1rem;
+      backdrop-filter: blur(8px);
+      font-size: 0.85rem;
+    }
+
+    .stat-pill-icon { font-size: 1rem; }
+
+    .stat-pill-val {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem; font-weight: 700;
+      color: var(--cream);
+    }
+
+    .stat-pill-label {
+      font-size: 0.75rem;
+      color: rgba(254,250,224,0.4);
+      margin-left: -0.15rem;
+    }
+
+    /* ── GRID CONTAINER ── */
+    .grid-wrap {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 1.75rem;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      backdrop-filter: blur(8px);
+      animation: fadeUp 0.7s 0.2s ease-out both;
+    }
+
+    .grid-wrap::-webkit-scrollbar { height: 6px; }
+    .grid-wrap::-webkit-scrollbar-track { background: rgba(116,198,157,0.05); border-radius: 99px; }
+    .grid-wrap::-webkit-scrollbar-thumb { background: rgba(116,198,157,0.2); border-radius: 99px; }
+
+    /* Column headers */
+    .col-headers {
+      display: flex; gap: 6px;
+      padding-left: 58px; /* align with cells past row label */
+      margin-bottom: 6px;
+      min-width: max-content;
+    }
+
+    .col-header {
+      width: 40px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: rgba(116,198,157,0.4);
+      flex-shrink: 0;
+    }
+
+    .plantation-grid {
+      display: flex; flex-direction: column;
+      gap: 6px;
+      min-width: max-content;
+    }
+
+    .farm-row {
+      display: flex; gap: 6px; align-items: center;
+    }
+
+    .row-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: rgba(116,198,157,0.45);
+      letter-spacing: 0.08em;
+      min-width: 52px;
+      text-align: right;
+      padding-right: 6px;
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+
+    .plant-cell {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      background: rgba(116,198,157,0.04);
+      border: 1px solid rgba(116,198,157,0.08);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      cursor: default;
+      position: relative;
+      transform: scale(0);
+      animation: cellPop 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards;
+      flex-shrink: 0;
+    }
+
+    .plant-cell:hover {
+      transform: scale(1.15) !important;
+      z-index: 2;
+    }
+
+    .plant-cell.planted {
+      background: var(--success-bg);
+      border-color: var(--success-border);
+      box-shadow: 0 0 10px rgba(102,187,106,0.15);
+    }
+
+    .plant-cell.missed {
+      background: var(--error-bg);
+      border-color: var(--error-border);
+      box-shadow: 0 0 10px rgba(239,83,80,0.12);
+    }
+
+    @keyframes cellPop {
+      to { transform: scale(1); }
+    }
+
+    /* Tooltip on hover */
+    .plant-cell[data-tip]::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: calc(100% + 6px); left: 50%;
+      transform: translateX(-50%);
+      background: rgba(6,14,9,0.92);
+      border: 1px solid var(--border);
+      color: var(--cream);
+      font-size: 0.7rem;
+      white-space: nowrap;
+      padding: 3px 8px;
+      border-radius: 6px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      backdrop-filter: blur(8px);
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .plant-cell[data-tip]:hover::after { opacity: 1; }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: rgba(254,250,224,0.3);
+    }
+
+    .empty-state-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+    .empty-state p { font-size: 0.95rem; }
+
+    /* ── FLOATING RESET ── */
+    .btn-reset {
+      position: fixed; bottom: 2rem; right: 2rem;
+      width: 50px; height: 50px; border-radius: 50%;
+      background: rgba(183,46,46,0.8);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,100,100,0.25);
+      box-shadow: 0 4px 20px rgba(183,46,46,0.35);
+      color: white; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      z-index: 1000;
+    }
+
+    .btn-reset:hover {
+      transform: translateY(-3px) rotate(-45deg);
+      box-shadow: 0 8px 32px rgba(183,46,46,0.55);
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      main { padding: 1.5rem 1rem 3rem; }
+      .page-header { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <a href="index.html" class="logo">
+    <span>🌾</span>
+    Krishisarthi
+    <span class="logo-dot"></span>
+  </a>
+  <nav>
+    <a href="calculator.html" class="nav-btn">🧮 Calculator</a>
+    <a href="dashboard.html" class="nav-btn">📊 Dashboard</a>
+  </nav>
+</header>
+
+<!-- MAIN -->
+<main>
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="page-label">Field Monitoring · Real-time</div>
+      <h1 class="page-title">
+        <div class="title-icon">🗺️</div>
+        Live Plantation Map
+        <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+      </h1>
+      <p class="page-sub">Each cell represents one planting position. Scroll horizontally to view full field.</p>
+    </div>
+
+    <div class="legend-row">
+      <div class="legend-pill planted">
+        <div class="legend-swatch" style="background:var(--success)"></div>
+        🌱 Planted
+      </div>
+      <div class="legend-pill missed">
+        <div class="legend-swatch" style="background:var(--error)"></div>
+        ⚠️ Missed
+      </div>
+      <div class="legend-pill empty">
+        <div class="legend-swatch" style="background:rgba(116,198,157,0.15)"></div>
+        Empty
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats strip -->
+  <div class="stats-strip" id="statsStrip">
+    <div class="stat-pill">
+      <span class="stat-pill-icon">🌱</span>
+      <span class="stat-pill-val" id="strip-planted">0</span>
+      <span class="stat-pill-label">Planted</span>
+    </div>
+    <div class="stat-pill">
+      <span class="stat-pill-icon">⚠️</span>
+      <span class="stat-pill-val" id="strip-missed">0</span>
+      <span class="stat-pill-label">Missed</span>
+    </div>
+    <div class="stat-pill">
+      <span class="stat-pill-icon">📐</span>
+      <span class="stat-pill-val" id="strip-total">0</span>
+      <span class="stat-pill-label">Total Cells</span>
+    </div>
+    <div class="stat-pill">
+      <span class="stat-pill-icon">✅</span>
+      <span class="stat-pill-val" id="strip-rate">—</span>
+      <span class="stat-pill-label">Success Rate</span>
+    </div>
+  </div>
+
+  <!-- Grid container -->
+  <div class="grid-wrap">
+    <div class="col-headers" id="colHeaders"></div>
+    <div class="plantation-grid" id="plantationGrid">
+      <!-- Rows generated by live-view.js -->
+    </div>
+    <div class="empty-state" id="emptyState" style="display:none">
+      <div class="empty-state-icon">🌾</div>
+      <p>Waiting for plantation data from ESP32...</p>
+    </div>
+  </div>
+
+</main>
+
+<!-- Floating Reset -->
+<button class="btn-reset" onclick="window.firebaseDb && window.firebaseDb.resetDatabase()" title="Reset Database">
+  <svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" width="20" height="20">
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+    <path d="M3 3v5h5"/>
+  </svg>
+</button>
+
+<script>
+  // ── Stats strip updater (hooks into live-view.js data) ──
+  function updateStrip() {
+    const grid = document.getElementById('plantationGrid');
+    if (!grid) return;
+    const planted = grid.querySelectorAll('.plant-cell.planted').length;
+    const missed  = grid.querySelectorAll('.plant-cell.missed').length;
+    const total   = grid.querySelectorAll('.plant-cell').length;
+    const rate    = total > 0 ? Math.round((planted / total) * 100) + '%' : '—';
+
+    const sp = document.getElementById('strip-planted');
+    const sm = document.getElementById('strip-missed');
+    const st = document.getElementById('strip-total');
+    const sr = document.getElementById('strip-rate');
+    if (sp) sp.textContent = planted;
+    if (sm) sm.textContent = missed;
+    if (st) st.textContent = total;
+    if (sr) sr.textContent = rate;
+  }
+
+  // Observe grid changes
+  const gridEl = document.getElementById('plantationGrid');
+  if (gridEl) {
+    const obs = new MutationObserver(updateStrip);
+    obs.observe(gridEl, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  }
+
+  // ── Column headers: build based on first row width ──
+  function buildColHeaders(count) {
+    const ch = document.getElementById('colHeaders');
+    if (!ch || ch.children.length > 0) return;
+    for (let i = 1; i <= count; i++) {
+      const d = document.createElement('div');
+      d.className = 'col-header';
+      d.textContent = i;
+      ch.appendChild(d);
+    }
+  }
+
+  // Hook after live-view.js populates first row
+  const colObserver = new MutationObserver(() => {
+    const firstRow = gridEl?.querySelector('.farm-row');
+    if (firstRow) {
+      const cells = firstRow.querySelectorAll('.plant-cell');
+      if (cells.length > 0) {
+        buildColHeaders(cells.length);
+        colObserver.disconnect();
+      }
+    }
+  });
+  if (gridEl) colObserver.observe(gridEl, { childList: true });
+
+  // Empty state toggle
+  const emptyObs = new MutationObserver(() => {
+    const es = document.getElementById('emptyState');
+    const hasRows = gridEl?.querySelectorAll('.farm-row').length > 0;
+    if (es) es.style.display = hasRows ? 'none' : 'block';
+  });
+  if (gridEl) emptyObs.observe(gridEl, { childList: true });
+
+  // Show empty by default
+  const es = document.getElementById('emptyState');
+  if (es) es.style.display = 'block';
+
+  // ── Override plant-cell creation to inject tooltips ──
+  // Wrap MutationObserver to add data-tip attrs to new cells
+  const tipObserver = new MutationObserver(mutations => {
+    mutations.forEach(m => {
+      m.addedNodes.forEach(node => {
+        if (node.nodeType === 1) {
+          const cells = node.classList?.contains('plant-cell')
+            ? [node]
+            : [...(node.querySelectorAll?.('.plant-cell') || [])];
+          cells.forEach(cell => {
+            if (!cell.dataset.tip) {
+              const isPlanted = cell.classList.contains('planted');
+              const isMissed  = cell.classList.contains('missed');
+              const rowEl = cell.closest('.farm-row');
+              const rowLabel = rowEl?.querySelector('.row-label')?.textContent?.trim() || '';
+              const cellIdx = [...(rowEl?.querySelectorAll('.plant-cell') || [])].indexOf(cell) + 1;
+              cell.dataset.tip = isPlanted
+                ? `${rowLabel} · Col ${cellIdx} · Planted ✓`
+                : isMissed
+                ? `${rowLabel} · Col ${cellIdx} · Missed ✗`
+                : `${rowLabel} · Col ${cellIdx}`;
+            }
+          });
+        }
+      });
+    });
+  });
+  if (gridEl) tipObserver.observe(gridEl, { childList: true, subtree: true });
+</script>
+<script type="module" src="js/firebase-config.js"></script>
+<script src="js/live-view.js"></script>
+
+</body>
+</html>
