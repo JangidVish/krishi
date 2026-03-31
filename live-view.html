@@ -132,7 +132,7 @@
       animation: fadeUp 0.6s ease-out both;
     }
 
-    .page-header-left {}
+
 
     .page-label {
       font-size: 0.75rem;
@@ -311,21 +311,29 @@
       text-transform: uppercase;
     }
 
-    .plant-cell {
-      width: 40px; height: 40px;
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem;
-      background: rgba(116,198,157,0.04);
-      border: 1px solid rgba(116,198,157,0.08);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-      cursor: default;
-      position: relative;
-      transform: scale(0);
-      animation: cellPop 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards;
-      flex-shrink: 0;
-    }
+.plant-cell {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  background: rgba(116,198,157,0.04);
+  border: 1px solid rgba(116,198,157,0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: default;
+  position: relative;
+  flex-shrink: 0;
 
+  transform: scale(1);
+  animation: cellPop 0.35s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+@keyframes cellPop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
     .plant-cell:hover {
       transform: scale(1.15) !important;
       z-index: 2;
@@ -343,9 +351,6 @@
       box-shadow: 0 0 10px rgba(239,83,80,0.12);
     }
 
-    @keyframes cellPop {
-      to { transform: scale(1); }
-    }
 
     /* Tooltip on hover */
     .plant-cell[data-tip]::after {
@@ -415,7 +420,6 @@
     <span class="logo-dot"></span>
   </a>
   <nav>
-    <a href="calculator.html" class="nav-btn">🧮 Calculator</a>
     <a href="dashboard.html" class="nav-btn">📊 Dashboard</a>
   </nav>
 </header>
@@ -468,11 +472,7 @@
       <span class="stat-pill-val" id="strip-total">0</span>
       <span class="stat-pill-label">Total Cells</span>
     </div>
-    <div class="stat-pill">
-      <span class="stat-pill-icon">✅</span>
-      <span class="stat-pill-val" id="strip-rate">—</span>
-      <span class="stat-pill-label">Success Rate</span>
-    </div>
+    
   </div>
 
   <!-- Grid container -->
@@ -498,29 +498,12 @@
 </button>
 
 <script>
-  // ── Stats strip updater (hooks into live-view.js data) ──
-  function updateStrip() {
-    const grid = document.getElementById('plantationGrid');
-    if (!grid) return;
-    const planted = grid.querySelectorAll('.plant-cell.planted').length;
-    const missed  = grid.querySelectorAll('.plant-cell.missed').length;
-    const total   = grid.querySelectorAll('.plant-cell').length;
-    const rate    = total > 0 ? Math.round((planted / total) * 100) + '%' : '—';
+  // updateStrip() is defined in js/live-view.js (top-level global)
 
-    const sp = document.getElementById('strip-planted');
-    const sm = document.getElementById('strip-missed');
-    const st = document.getElementById('strip-total');
-    const sr = document.getElementById('strip-rate');
-    if (sp) sp.textContent = planted;
-    if (sm) sm.textContent = missed;
-    if (st) st.textContent = total;
-    if (sr) sr.textContent = rate;
-  }
-
-  // Observe grid changes
+  // Observe grid changes — auto-refresh stats strip on DOM mutations
   const gridEl = document.getElementById('plantationGrid');
   if (gridEl) {
-    const obs = new MutationObserver(updateStrip);
+    const obs = new MutationObserver(() => typeof updateStrip === 'function' && updateStrip());
     obs.observe(gridEl, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
   }
 
@@ -591,6 +574,7 @@
   if (gridEl) tipObserver.observe(gridEl, { childList: true, subtree: true });
 </script>
 <script type="module" src="js/firebase-config.js"></script>
+
 <script src="js/live-view.js"></script>
 
 </body>

@@ -1,115 +1,111 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+// 🔐 Your Firebase config
 const firebaseConfig = {
-    apiKey: "AIzaSyAzkcg1wzQTo2B7vQdcahtHAM2YBPn9WSY",
-    databaseURL: "https://planting-77ce1-default-rtdb.asia-southeast1.firebasedatabase.app"
+    apiKey: "AIzaSyAo2-BGrCrO3N8pjTqaoAPH34_o6-Eueyo",
+    databaseURL: "https://tifan-66317-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 
+// 🚀 Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-class RealtimeDatabaseSimulator extends EventTarget {
+class RealtimeDatabase extends EventTarget {
     constructor() {
         super();
+
         this.data = {
             speed: 0,
             distance: 0,
-            plant_distance: 30, // cm
+            plant_distance: 300,
             saplings_planted: 0,
             saplings_missed: 0,
-            plantation_grid: []
-            // plantation_grid format: [ [1,1,0,...], [1,1,1,...] ] 1 = planted, 0 = missed
+            plantation_grid: [],
+            direction: "",
+            bed: "",
+            trigger: ""
         };
 
-        // Start listening to Firebase real-time data
         this.startListening();
     }
 
-    resetDatabase() {
-        if (confirm("Are you sure you want to reset the plantation database to zero?")) {
-            const dbRef = ref(database, '/plant');
-            set(dbRef, {
-                count: 0,
-                distance: 0,
-                map: null // This removes all the plant map history
-            }).then(() => {
-                console.log("Database reset successfully!");
-                // Also reset local state
-                this.data.distance = 0;
-                this.data.saplings_planted = 0;
-                this.data.saplings_missed = 0;
-                this.data.plantation_grid = [];
-                this.dispatchEvent(new CustomEvent('data_updated', {
-                    detail: this.data
-                }));
-            }).catch((error) => {
-                console.error("Error resetting database:", error);
-            });
-        }
-    }
-
+    // 🔴 REALTIME LISTENER
     startListening() {
-        // According to the schema, data is stored under "plant"
-        const dbRef = ref(database, '/plant');
+        const dbRef = ref(database, '/transplanter');
+
         onValue(dbRef, (snapshot) => {
             const val = snapshot.val();
-            console.log("Firebase Data Received from /plant:", val);
-            if (val) {
-                // Map Firebase schema to UI schema
+            console.log("🔥 Firebase Data:", val);
 
-                // Tractor's distance travelled
-                if (val.distance !== undefined) {
-                    this.data.distance = val.distance.toFixed(1);
-                }
+            if (!val) return;
 
-                // Saplings Planted
-                if (val.count !== undefined) {
-                    this.data.saplings_planted = val.count;
-                }
+            this.data = {
+                speed: Number(val.speed ?? 0),
+                distance: Number(val.distance ?? 0),
+                plant_distance: Number(val.plant_distance ?? 300),
+                saplings_planted: Number(val.saplings_planted ?? val.count ?? 0),
+                saplings_missed: Number(val.saplings_missed ?? 0),
+                plantation_grid: Array.isArray(val.plantation_grid) ? val.plantation_grid : [],
+                direction: val.direction ?? "",
+                bed: val.bed ?? "",
+                trigger: String(val.trigger ?? "NO").toUpperCase()
+            };
 
-                // Assuming constant speed for now since it's not in the schema
-                // Could be calculated based on delta distance / delta time in the future
-                this.data.speed = 4.5;
-
-                // Missed saplings could be calculated based on total possible plants 
-                // vs actual planted (count), or read from the map.
-                // For now, we calculate from the map data.
-                if (val.map !== undefined) {
-                    let totalMissed = 0;
-                    let currentGrid = [];
-                    let currentRow = [];
-
-                    // The map keys are 1, 2, 3...
-                    // Convert the object/array into a sorted array of values
-                    const mapData = val.map;
-                    const mapKeys = Object.keys(mapData).map(Number).sort((a, b) => a - b);
-
-                    mapKeys.forEach((key, index) => {
-                        const isPlanted = mapData[key] === 1 ? 1 : 0;
-                        if (isPlanted === 0) totalMissed++;
-
-                        currentRow.push(isPlanted);
-
-                        // Push to grid every 20 plants (or desired row length)
-                        if (currentRow.length >= 20 || index === mapKeys.length - 1) {
-                            currentGrid.push(currentRow);
-                            currentRow = [];
-                        }
-                    });
-
-                    this.data.saplings_missed = totalMissed;
-                    this.data.plantation_grid = currentGrid;
-                }
-
-                // Dispatch event for UI to catch
-                this.dispatchEvent(new CustomEvent('data_updated', {
-                    detail: this.data
-                }));
-            }
+            // 🔁 Trigger UI update
+            this.dispatchEvent(new CustomEvent('data_updated', {
+                detail: this.data
+            }));
         });
+    }
+
+    // 🔄 RESET DATABASE
+    resetDatabase() {
+        if (!confirm("Reset database?")) return;
+
+        const dbRef = ref(database, '/transplanter');
+
+        set(dbRef, {
+            bed: "OFF_BED",
+            count: 0,
+            direction: "STOP",
+            speed: 0,
+            trigger: "NO",
+            plantation_grid: []
+        })
+        .then(() => console.log("✅ Database reset"))
+        .catch(err => console.error("❌ Reset error:", err));
+    }
+
+    // 🧪 TEST MODE (NO FIREBASE NEEDED)
+    simulateData() {
+        console.log("🧪 Running TEST MODE...");
+
+        let grid = [];
+        let row = [];
+
+        setInterval(() => {
+            const val = Math.random() > 0.3 ? 1 : 0;
+            row.push(val);
+
+            if (row.length >= 10) {
+                grid.push(row);
+                row = [];
+            }
+
+            this.data.plantation_grid = [...grid, row];
+
+            this.dispatchEvent(new CustomEvent('data_updated', {
+                detail: this.data
+            }));
+
+        }, 800);
     }
 }
 
-// Attach to window object to be accessible globally
-window.firebaseDb = new RealtimeDatabaseSimulator();
+// 🌍 Make global
+window.firebaseDb = new RealtimeDatabase();
+
+
+// 🧪 👉 ENABLE THIS LINE TO TEST WITHOUT FIREBASE
+// window.firebaseDb.simulateData();
