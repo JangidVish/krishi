@@ -3,6 +3,8 @@
  * Subscribes to Firebase (simulated) events and updates the UI
  */
 
+const DASHBOARD_LOG = '[dashboard]';
+
 document.addEventListener('DOMContentLoaded', () => {
     const elSaplingsPlanted = document.getElementById('saplingsPlanted');
     const elTriggerCount = document.getElementById('triggerCount');
@@ -15,6 +17,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let prevTrigger = null;
     let countOfSaplings = 0;
     let selectedPlantDistance = Number(elPlantDistanceDropdown?.value ?? 300);
+    let isFirebaseBound = false;
+
+    console.log(`${DASHBOARD_LOG} DOM ready`, {
+        hasSaplingsEl: Boolean(elSaplingsPlanted),
+        hasTriggerEl: Boolean(elTriggerCount),
+        hasTotalEl: Boolean(elTotalSaplings),
+        hasDistanceEl: Boolean(elTotalDistance),
+        hasSpeedEl: Boolean(elSpeed),
+        hasDistanceDropdown: Boolean(elPlantDistanceDropdown)
+    });
 
     const safeNumber = (value, fallback = 0) => {
         const n = Number(value);
@@ -76,6 +88,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalSaplings = countOfSaplings + triggerYesCount;
         const totalDistanceMeters = (totalSaplings * selectedPlantDistance) / 1000;
 
+        console.log(`${DASHBOARD_LOG} renderDerived`, {
+            countOfSaplings,
+            triggerYesCount,
+            totalSaplings,
+            selectedPlantDistance,
+            totalDistanceMeters
+        });
+
         animateNumberText(elSaplingsPlanted, countOfSaplings, { decimals: 0 });
         animateNumberText(elTriggerCount, triggerYesCount, { decimals: 0 });
         animateNumberText(elTotalSaplings, totalSaplings, { decimals: 0 });
@@ -91,35 +111,65 @@ document.addEventListener('DOMContentLoaded', () => {
         elPlantDistanceDropdown.addEventListener('change', (event) => {
             const nextDistance = safeNumber(event.target.value, 300);
             if (![300, 450, 600].includes(nextDistance)) {
+                console.warn(`${DASHBOARD_LOG} Ignored invalid plant distance`, event.target.value);
                 return;
             }
             selectedPlantDistance = nextDistance;
+            console.log(`${DASHBOARD_LOG} Plant distance changed`, selectedPlantDistance);
             renderDerived();
         });
     }
 
-    if (window.firebaseDb) {
-        window.firebaseDb.addEventListener('data_updated', (event) => {
-            const data = event.detail ?? {};
-            const saplingsPlanted = safeNumber(data.saplings_planted, 0);
-            const trigger = String(data.trigger ?? 'NO').toUpperCase();
+    const handleDataUpdate = (event) => {
+        const data = event?.detail ?? event ?? {};
+        const saplingsPlanted = safeNumber(data.saplings_planted, 0);
+        const trigger = String(data.trigger ?? 'NO').toUpperCase();
+        const previousTrigger = prevTrigger;
 
-            // Database/device reset path: counters must also reset locally.
-            if (saplingsPlanted < countOfSaplings || (saplingsPlanted === 0 && countOfSaplings > 0)) {
-                triggerYesCount = 0;
-                prevTrigger = null;
-            }
-
-            countOfSaplings = Math.max(0, saplingsPlanted);
-            if (trigger === 'YES' && prevTrigger !== 'YES') {
-                triggerYesCount += 1;
-                pulseValue(elTriggerCount);
-            }
-            prevTrigger = trigger;
-
-            const speedValue = safeNumber(data.speed, 0);
-            animateNumberText(elSpeed, speedValue, { decimals: 3 });
-            renderDerived();
+        console.log(`${DASHBOARD_LOG} data_updated received`, {
+            saplings_planted: saplingsPlanted,
+            speed: safeNumber(data.speed, 0),
+            trigger,
+            previousTrigger
         });
-    }
+
+        countOfSaplings = Math.max(0, saplingsPlanted);
+        if (trigger === 'YES' && prevTrigger !== 'YES') {
+            triggerYesCount += 1;
+            console.log(`${DASHBOARD_LOG} Trigger NO->YES edge detected`, { triggerYesCount });
+            pulseValue(elTriggerCount);
+        }
+        prevTrigger = trigger;
+
+        const speedValue = safeNumber(data.speed, 0);
+        animateNumberText(elSpeed, speedValue, { decimals: 3 });
+        renderDerived();
+    };
+
+    const bindFirebase = (firebaseDb) => {
+        if (!firebaseDb || isFirebaseBound) {
+            console.log(`${DASHBOARD_LOG} bindFirebase skipped`, {
+                hasFirebaseDb: Boolean(firebaseDb),
+                isFirebaseBound
+            });
+            return;
+        }
+
+        console.log(`${DASHBOARD_LOG} Binding data_updated listener`);
+        firebaseDb.addEventListener('data_updated', handleDataUpdate);
+        isFirebaseBound = true;
+
+        // Render latest known state right away, even if first realtime event was already emitted.
+        if (firebaseDb.data) {
+            console.log(`${DASHBOARD_LOG} Rendering initial firebaseDb.data`);
+            handleDataUpdate(firebaseDb.data);
+        }
+    };
+
+    console.log(`${DASHBOARD_LOG} Attempting immediate bind with window.firebaseDb`);
+    bindFirebase(window.firebaseDb);
+    window.addEventListener('firebase_db_ready', (event) => {
+        console.log(`${DASHBOARD_LOG} firebase_db_ready event received`);
+        bindFirebase(event.detail || window.firebaseDb);
+    });
 });

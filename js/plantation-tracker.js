@@ -4,7 +4,6 @@
  * Rules:
  *  - count increases + trigger NO  → planted 🌱 (cell = 1)
  *  - trigger edge NO → YES         → missed  ⚠️ (cell = 0)  ← count does NOT increase here
- *  - count decreases               → full reset
  */
 
 const TRACKER_LOG = '[plantation-tracker]';
@@ -102,8 +101,16 @@ export function createPlantationTracker(options = {}) {
   }
 
   function processUpdate(payload = {}) {
-    // Accept either field name from Firebase
-    const incomingSaplings = Math.max(0, Number(payload.saplings_planted ?? payload.count) || 0);
+    // ✅ FIX: use explicit null/undefined check so a genuine 0 from
+    //    saplings_planted is respected, while still falling back to
+    //    payload.count when the field is truly absent from Firebase.
+    const incomingSaplings = Math.max(
+      0,
+      payload.saplings_planted != null
+        ? Number(payload.saplings_planted)
+        : Number(payload.count ?? 0)
+    );
+
     const trigger = normalizeTrigger(payload.trigger);
 
     console.log(`${TRACKER_LOG} processUpdate`, {
@@ -132,7 +139,7 @@ export function createPlantationTracker(options = {}) {
       console.log(`${TRACKER_LOG} NO→YES edge → missed cell appended`, { triggerYesCount });
     }
 
-    // ── PLANTED: count increased while trigger is NO ─────────────────────────
+    // ── PLANTED: count increased ─────────────────────────────────────────────
     if (incomingSaplings > prevSaplings) {
       const delta = incomingSaplings - prevSaplings;
       console.log(`${TRACKER_LOG} count increased by ${delta}`);

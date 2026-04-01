@@ -507,28 +507,6 @@
       flex-shrink: 0;
     }
 
-    /* ── FLOATING RESET ── */
-    .btn-reset {
-      position: fixed;
-      bottom: 2rem; right: 2rem;
-      width: 50px; height: 50px;
-      border-radius: 50%;
-      background: rgba(183,46,46,0.8);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,100,100,0.25);
-      box-shadow: 0 4px 20px rgba(183,46,46,0.35);
-      color: white;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      z-index: 1000;
-    }
-
-    .btn-reset:hover {
-      transform: translateY(-3px) rotate(-45deg);
-      box-shadow: 0 8px 32px rgba(183,46,46,0.55);
-    }
-
     /* ── RESPONSIVE ── */
     @media (max-width: 600px) {
       main { padding: 1.5rem 1rem 3rem; }
@@ -674,14 +652,6 @@
 
 </main>
 
-<!-- Floating Reset -->
-<button class="btn-reset" onclick="window.firebaseDb && window.firebaseDb.resetDatabase()" title="Reset Database">
-  <svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" width="20" height="20">
-    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-    <path d="M3 3v5h5"/>
-  </svg>
-</button>
-
 <script>
   // ── Demo donut update ────────────────────────────────
   function updateDonut(planted, missed) {
@@ -746,7 +716,7 @@
   updateDonut(0, 0);
 </script>
 <script type="module" src="js/firebase-config.js"></script>
-<script src="js/dashboard.js"></script>
+<script type="module" src="js/dashboard.js"></script>
 
 </body>
 </html>

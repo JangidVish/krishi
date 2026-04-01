@@ -948,32 +948,6 @@
       border-top: 1px solid rgba(116,198,157,0.08);
     }
 
-    /* ── FLOATING RESET ─────────────────────────────── */
-    .btn-reset {
-      position: fixed;
-      bottom: 2rem;
-      right: 2rem;
-      width: 52px;
-      height: 52px;
-      border-radius: 50%;
-      background: rgba(183,46,46,0.85);
-      backdrop-filter: blur(8px);
-      color: white;
-      border: 1px solid rgba(255,100,100,0.3);
-      box-shadow: 0 4px 20px rgba(183,46,46,0.4);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      z-index: 1000;
-    }
-
-    .btn-reset:hover {
-      transform: translateY(-3px) rotate(-45deg);
-      box-shadow: 0 8px 32px rgba(183,46,46,0.6);
-    }
-
     /* ── RESPONSIVE ─────────────────────────────────── */
     @media (max-width: 600px) {
       .hero-content { padding-bottom: 240px; }
@@ -1145,7 +1119,6 @@
 
 </div>
 
-<!-- Reset button -->
 <!-- Machine Number Validation Modal -->
 <div id="machineModal" class="modal-overlay">
   <div class="modal-content">
@@ -1165,13 +1138,6 @@
     </div>
   </div>
 </div>
-
-<button class="btn-reset" title="Reset Database">
-  <svg fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" width="22" height="22">
-    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-    <path d="M3 3v5h5"/>
-  </svg>
-</button>
 
 <script>
 // ── Splash ───────────────────────────────────────────

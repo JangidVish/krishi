@@ -5,7 +5,6 @@
  * Rules (handled by tracker):
  *  - saplings_planted increases  →  append 1 (planted 🌱)
  *  - trigger goes NO → YES       →  append 0 (missed ⚠️)
- *  - saplings_planted decreases  →  full reset
  */
 
 import { createPlantationTracker } from './plantation-tracker.js';
@@ -22,6 +21,7 @@ const emptyEl  = document.getElementById('emptyState');
 const stripPlanted = document.getElementById('strip-planted');
 const stripMissed  = document.getElementById('strip-missed');
 const stripTotal   = document.getElementById('strip-total');
+let isFirebaseBound = false;
 
 // ─── Tracker instance ────────────────────────────────────────────────────────
 const tracker = createPlantationTracker({ rowSize: ROW_SIZE });
@@ -123,7 +123,7 @@ function buildColHeaders(count) {
   }
 }
 
-/** Wipe the grid DOM completely (used on tracker reset) */
+/** Wipe the grid DOM completely before rendering a full incoming grid snapshot. */
 function clearGrid() {
   if (!gridEl) return;
   console.warn(`${LIVE_VIEW_LOG} clearGrid called`);
@@ -133,11 +133,43 @@ function clearGrid() {
   if (emptyEl) emptyEl.style.display = 'block';
 }
 
+function sanitizeGrid(input) {
+  if (!Array.isArray(input)) return [];
+  return input
+    .filter((row) => Array.isArray(row))
+    .map((row) => row.map((cell) => Number(cell)).filter((cell) => cell === 0 || cell === 1));
+}
+
+function summarizeGrid(grid) {
+  let planted = 0;
+  let missed = 0;
+  grid.forEach((row) => {
+    row.forEach((cell) => {
+      if (cell === 1) planted += 1;
+      if (cell === 0) missed += 1;
+    });
+  });
+  return { planted, missed, total: planted + missed };
+}
+
 // ─── Firebase event handler ──────────────────────────────────────────────────
 
 function handleDataUpdate(event) {
   const payload = event.detail ?? {};
   console.log(`${LIVE_VIEW_LOG} data_updated event`, payload);
+
+  const incomingGrid = sanitizeGrid(payload.plantation_grid);
+  if (incomingGrid.length > 0) {
+    // If backend already sends the full plantation grid, render it directly.
+    clearGrid();
+    renderGrid(incomingGrid);
+
+    const stats = summarizeGrid(incomingGrid);
+    if (stripPlanted) stripPlanted.textContent = stats.planted;
+    if (stripMissed) stripMissed.textContent = stats.missed;
+    if (stripTotal) stripTotal.textContent = stats.total;
+    return;
+  }
 
   // Remember if we had data before this update
   const before = tracker.getSnapshot();
@@ -148,17 +180,6 @@ function handleDataUpdate(event) {
   const snapshot = tracker.processUpdate(payload);
   console.log(`${LIVE_VIEW_LOG} after processUpdate`, snapshot);
 
-  // If saplings decreased → tracker reset → clear DOM too
-  const wasReset = hadData && snapshot.total === 0;
-  if (wasReset) {
-    console.warn(`${LIVE_VIEW_LOG} detected reset after update`, {
-      hadData,
-      beforeTotal: before.total,
-      afterTotal: snapshot.total
-    });
-  }
-  if (wasReset) clearGrid();
-
   // Render incremental changes
   renderGrid(snapshot.grid);
 
@@ -168,18 +189,20 @@ function handleDataUpdate(event) {
 
 // ─── Wire up ─────────────────────────────────────────────────────────────────
 
-if (window.firebaseDb) {
-  console.log(`${LIVE_VIEW_LOG} binding data_updated listener (firebaseDb already available)`);
-  window.firebaseDb.addEventListener('data_updated', handleDataUpdate);
-} else {
-  // Fallback: wait for firebaseDb to be attached
-  window.addEventListener('load', () => {
-    console.log(`${LIVE_VIEW_LOG} load event, checking firebaseDb`);
-    if (window.firebaseDb) {
-      console.log(`${LIVE_VIEW_LOG} binding data_updated listener after load`);
-      window.firebaseDb.addEventListener('data_updated', handleDataUpdate);
-    } else {
-      console.error(`${LIVE_VIEW_LOG} firebaseDb is still unavailable on load`);
-    }
-  });
+function bindFirebase(firebaseDb) {
+  if (!firebaseDb || isFirebaseBound) return;
+
+  console.log(`${LIVE_VIEW_LOG} binding data_updated listener`);
+  firebaseDb.addEventListener('data_updated', handleDataUpdate);
+  isFirebaseBound = true;
+
+  // Render latest known state immediately even if first event was missed.
+  if (firebaseDb.data) {
+    handleDataUpdate({ detail: firebaseDb.data });
+  }
 }
+
+bindFirebase(window.firebaseDb);
+window.addEventListener('firebase_db_ready', (event) => {
+  bindFirebase(event.detail || window.firebaseDb);
+});

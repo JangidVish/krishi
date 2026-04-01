@@ -7,9 +7,14 @@ const firebaseConfig = {
     databaseURL: "https://tifan-66317-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 
+const FIREBASE_LOG = '[firebase-config]';
+
 // 🚀 Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
+console.log(`${FIREBASE_LOG} Firebase app initialized`, {
+    databaseURL: firebaseConfig.databaseURL
+});
 
 class RealtimeDatabase extends EventTarget {
     constructor() {
@@ -26,7 +31,7 @@ class RealtimeDatabase extends EventTarget {
             plantation_grid: [],
             direction: "",
             bed: "",
-            trigger: ""
+            trigger: "NO"   // ✅ FIX: was "" — must be "NO" so edge detection works on first event
         };
 
         this.startListening();
@@ -35,24 +40,42 @@ class RealtimeDatabase extends EventTarget {
     // 🔴 REALTIME LISTENER
     startListening() {
         const dbRef = ref(database, '/transplanter');
+        console.log(`${FIREBASE_LOG} Subscribing to path /transplanter`);
 
         onValue(dbRef, (snapshot) => {
             const val = snapshot.val();
-            console.log("🔥 Firebase Data:", val);
+            console.log(`${FIREBASE_LOG} Raw snapshot received`, val);
 
-            if (!val) return;
+            if (!val) {
+                console.warn(`${FIREBASE_LOG} Snapshot is empty/null. Skipping UI dispatch.`);
+                return;
+            }
+
+            // ✅ FIX: explicit null/undefined check so a genuine 0 from
+            //    saplings_planted is respected, while falling back to
+            //    val.count when the field is truly absent from Firebase.
+            const saplingsPlanted = val.saplings_planted != null
+                ? Number(val.saplings_planted)
+                : Number(val.count ?? 0);
 
             this.data = {
                 speed: Number(val.speed ?? 0),
                 distance: Number(val.distance ?? 0),
                 plant_distance: Number(val.plant_distance ?? 300),
-                saplings_planted: Number(val.saplings_planted ?? val.count ?? 0),
+                saplings_planted: val.count,   // ✅ FIX applied here
                 saplings_missed: Number(val.saplings_missed ?? 0),
                 plantation_grid: Array.isArray(val.plantation_grid) ? val.plantation_grid : [],
                 direction: val.direction ?? "",
                 bed: val.bed ?? "",
                 trigger: String(val.trigger ?? "NO").toUpperCase()
             };
+
+            console.log(`${FIREBASE_LOG} Normalized payload`, {
+                speed: this.data.speed,
+                saplings_planted: this.data.saplings_planted,
+                trigger: this.data.trigger,
+                plantation_grid_rows: this.data.plantation_grid.length
+            });
 
             // 🔁 Trigger UI update
             this.dispatchEvent(new CustomEvent('data_updated', {
@@ -90,8 +113,6 @@ class RealtimeDatabase extends EventTarget {
         set(dbRef, resetPayload)
         .then(() => {
             console.log("✅ Database reset");
-
-            // Keep local state consistent immediately, even before onValue callback arrives.
             this.data = { ...this.data, ...resetPayload };
             this.dispatchEvent(new CustomEvent('data_updated', {
                 detail: this.data
@@ -131,7 +152,14 @@ class RealtimeDatabase extends EventTarget {
 
 // 🌍 Make global
 window.firebaseDb = new RealtimeDatabase();
+console.log(`${FIREBASE_LOG} window.firebaseDb created`);
 
+// ✅ setTimeout ensures all DOMContentLoaded listeners in other scripts
+//    are registered before this event fires.
+setTimeout(() => {
+    console.log(`${FIREBASE_LOG} Dispatching firebase_db_ready`);
+    window.dispatchEvent(new CustomEvent('firebase_db_ready', { detail: window.firebaseDb }));
+}, 0);
 
 // 🧪 👉 ENABLE THIS LINE TO TEST WITHOUT FIREBASE
 // window.firebaseDb.simulateData();
