@@ -104,6 +104,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const saplingsPlanted = safeNumber(data.saplings_planted, 0);
             const trigger = String(data.trigger ?? 'NO').toUpperCase();
 
+            // Database/device reset path: counters must also reset locally.
+            if (saplingsPlanted < countOfSaplings || (saplingsPlanted === 0 && countOfSaplings > 0)) {
+                triggerYesCount = 0;
+                prevTrigger = null;
+            }
+
             countOfSaplings = Math.max(0, saplingsPlanted);
             if (trigger === 'YES' && prevTrigger !== 'YES') {
                 triggerYesCount += 1;

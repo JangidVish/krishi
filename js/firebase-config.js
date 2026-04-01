@@ -15,6 +15,8 @@ class RealtimeDatabase extends EventTarget {
     constructor() {
         super();
 
+        this.isResetting = false;
+
         this.data = {
             speed: 0,
             distance: 0,
@@ -61,20 +63,44 @@ class RealtimeDatabase extends EventTarget {
 
     // 🔄 RESET DATABASE
     resetDatabase() {
+        if (this.isResetting) {
+            console.warn("⚠️ Reset already in progress");
+            return;
+        }
+
         if (!confirm("Reset database?")) return;
+
+        this.isResetting = true;
 
         const dbRef = ref(database, '/transplanter');
 
-        set(dbRef, {
+        const resetPayload = {
             bed: "OFF_BED",
-            count: 0,
             direction: "STOP",
             speed: 0,
+            distance: 0,
+            plant_distance: 300,
             trigger: "NO",
+            saplings_planted: 0,
+            saplings_missed: 0,
+            count: 0,
             plantation_grid: []
+        };
+
+        set(dbRef, resetPayload)
+        .then(() => {
+            console.log("✅ Database reset");
+
+            // Keep local state consistent immediately, even before onValue callback arrives.
+            this.data = { ...this.data, ...resetPayload };
+            this.dispatchEvent(new CustomEvent('data_updated', {
+                detail: this.data
+            }));
         })
-        .then(() => console.log("✅ Database reset"))
-        .catch(err => console.error("❌ Reset error:", err));
+        .catch(err => console.error("❌ Reset error:", err))
+        .finally(() => {
+            this.isResetting = false;
+        });
     }
 
     // 🧪 TEST MODE (NO FIREBASE NEEDED)

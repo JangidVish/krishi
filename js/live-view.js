@@ -1,155 +1,185 @@
 /**
- * Live View Logic
- * Handles real-time Firebase updates and builds reactive grid.
+ * live-view.js
+ * Connects Firebase realtime events → PlantationTracker → DOM grid
+ *
+ * Rules (handled by tracker):
+ *  - saplings_planted increases  →  append 1 (planted 🌱)
+ *  - trigger goes NO → YES       →  append 0 (missed ⚠️)
+ *  - saplings_planted decreases  →  full reset
  */
 
-// ── Stats strip updater ──
-function updateStrip() {
-    const grid = document.getElementById('plantationGrid');
-    if (!grid) return;
-    const planted = grid.querySelectorAll('.plant-cell.planted').length;
-    const missed  = grid.querySelectorAll('.plant-cell.missed').length;
-    const total   = grid.querySelectorAll('.plant-cell').length;
-    const rate    = total > 0 ? Math.round((planted / total) * 100) + '%' : '—';
+import { createPlantationTracker } from './plantation-tracker.js';
 
-    const sp = document.getElementById('strip-planted');
-    const sm = document.getElementById('strip-missed');
-    const st = document.getElementById('strip-total');
-    const sr = document.getElementById('strip-rate');
-    if (sp) sp.textContent = planted;
-    if (sm) sm.textContent = missed;
-    if (st) st.textContent = total;
-    if (sr) sr.textContent = rate;
+const LIVE_VIEW_LOG = '[live-view]';
+
+// ─── Config ──────────────────────────────────────────────────────────────────
+const ROW_SIZE = 20; // cells per row
+
+// ─── DOM refs ────────────────────────────────────────────────────────────────
+const gridEl   = document.getElementById('plantationGrid');
+const emptyEl  = document.getElementById('emptyState');
+
+const stripPlanted = document.getElementById('strip-planted');
+const stripMissed  = document.getElementById('strip-missed');
+const stripTotal   = document.getElementById('strip-total');
+
+// ─── Tracker instance ────────────────────────────────────────────────────────
+const tracker = createPlantationTracker({ rowSize: ROW_SIZE });
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Update the three stat pills above the grid */
+function updateStrip() {
+  const { plantedCount, missedCount, total } = tracker.getSnapshot();
+  console.log(`${LIVE_VIEW_LOG} updateStrip`, { plantedCount, missedCount, total });
+  if (stripPlanted) stripPlanted.textContent = plantedCount;
+  if (stripMissed)  stripMissed.textContent  = missedCount;
+  if (stripTotal)   stripTotal.textContent   = total;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const gridContainer = document.getElementById('plantationGrid');
-    const colHeaders = document.getElementById('colHeaders');
+// Expose globally so inline observer in live-view.html can call it
+window.updateStrip = updateStrip;
 
-    const rowElements = [];
+/**
+ * Build / reconcile the full DOM grid from a 2-D number[][].
+ * Only adds new rows/cells — never re-creates existing ones, so
+ * CSS pop animations only fire on genuinely new cells.
+ */
+function renderGrid(grid) {
+  if (!gridEl) return;
 
-    // 🔹 Initialize Grid
-    const initializeGrid = (gridData) => {
-        gridContainer.innerHTML = '';
-        colHeaders.innerHTML = '';
-        rowElements.length = 0;
+  // Empty state toggle
+  const hasData = grid.length > 0 && grid.some(r => r.length > 0);
+  console.log(`${LIVE_VIEW_LOG} renderGrid`, {
+    rows: grid.length,
+    hasData,
+    rowSizes: grid.map((row) => row.length)
+  });
+  if (emptyEl) emptyEl.style.display = hasData ? 'none' : 'block';
 
-        gridData.forEach((rowData, rowIndex) => {
-            createRow(rowIndex);
-        });
-    };
+  grid.forEach((rowData, rowIndex) => {
+    let rowEl = gridEl.querySelector(`[data-row="${rowIndex}"]`);
 
-    // 🔹 Create new row dynamically
-    const createRow = (rowIndex) => {
-        const rowDiv = document.createElement('div');
-        rowDiv.className = 'farm-row';
+    // Create row if missing
+    if (!rowEl) {
+      rowEl = document.createElement('div');
+      rowEl.className = 'farm-row';
+      rowEl.dataset.row = rowIndex;
 
-        const label = document.createElement('div');
-        label.className = 'row-label';
-        label.innerText = `R${rowIndex + 1}`;
-        rowDiv.appendChild(label);
+      const label = document.createElement('div');
+      label.className = 'row-label';
+      label.textContent = `Row ${rowIndex + 1}`;
+      rowEl.appendChild(label);
 
-        const cellsContainer = document.createElement('div');
-        cellsContainer.style.display = 'flex';
-        cellsContainer.style.gap = '0.5rem';
-        rowDiv.appendChild(cellsContainer);
+      gridEl.appendChild(rowEl);
+    }
 
-        gridContainer.appendChild(rowDiv);
+    // Add only the new cells (existing cells stay untouched)
+    const existingCells = rowEl.querySelectorAll('.plant-cell').length;
+    const newCells = Math.max(0, rowData.length - existingCells);
+    if (newCells > 0) {
+      console.log(`${LIVE_VIEW_LOG} adding cells`, {
+        rowIndex,
+        existingCells,
+        rowLength: rowData.length,
+        newCells
+      });
+    }
 
-        rowElements[rowIndex] = {
-            container: cellsContainer,
-            length: 0
-        };
-    };
+    rowData.slice(existingCells).forEach((cellVal, relIdx) => {
+      const colIndex = existingCells + relIdx;
+      const cell = document.createElement('div');
+      cell.className = 'plant-cell';
+      cell.dataset.row = rowIndex;
+      cell.dataset.col = colIndex;
 
-    // 🔹 Build column headers
-    const buildColHeaders = (count) => {
-        if (!colHeaders) return;
-        colHeaders.innerHTML = '';
+      if (cellVal === 1) {
+        cell.classList.add('planted');
+        cell.textContent = '🌱';
+        cell.dataset.tip = `Row ${rowIndex + 1} · Col ${colIndex + 1} · Planted ✓`;
+      } else {
+        cell.classList.add('missed');
+        cell.textContent = '⚠️';
+        cell.dataset.tip = `Row ${rowIndex + 1} · Col ${colIndex + 1} · Missed ✗`;
+      }
 
-        for (let i = 1; i <= count; i++) {
-            const d = document.createElement('div');
-            d.className = 'col-header';
-            d.textContent = i;
-            colHeaders.appendChild(d);
-        }
-    };
-
-    // 🔹 Update Grid
-    const updateGrid = (gridData) => {
-
-        // ✅ Handle full reset
-        if (!gridData || gridData.length === 0) {
-            gridContainer.innerHTML = '';
-            colHeaders.innerHTML = '';
-            rowElements.length = 0;
-            updateStrip();
-            return;
-        }
-
-        // ✅ First-time init
-        if (rowElements.length === 0) {
-            initializeGrid(gridData);
-        }
-
-        gridData.forEach((rowData, rowIndex) => {
-
-            // ✅ Create row if new
-            if (!rowElements[rowIndex]) {
-                createRow(rowIndex);
-            }
-
-            const rowObj = rowElements[rowIndex];
-
-            // ✅ Reset row if shrinks
-            if (rowData.length < rowObj.length) {
-                rowObj.container.innerHTML = '';
-                rowObj.length = 0;
-            }
-
-            // ✅ Add new cells
-            while (rowObj.length < rowData.length) {
-                const cellVal = rowData[rowObj.length];
-                const cell = document.createElement('div');
-
-                cell.dataset.col = rowObj.length + 1;
-
-                if (cellVal === 1) {
-                    cell.className = 'plant-cell planted';
-                    cell.innerText = '🌱';
-                } else {
-                    cell.className = 'plant-cell missed';
-                    cell.innerText = '❌';
-                }
-
-                // Tooltip
-                cell.dataset.tip = `R${rowIndex + 1} · Col ${cell.dataset.col} · ${cellVal === 1 ? 'Planted ✓' : 'Missed ✗'}`;
-
-                rowObj.container.appendChild(cell);
-                rowObj.length++;
-            }
-        });
-
-        // ✅ Build column headers once
-        const firstRow = gridData[0];
-        if (firstRow) {
-            buildColHeaders(firstRow.length);
-        }
-
-        // ✅ Update stats manually (optimized)
-        updateStrip();
-    };
-
-    // 🔹 Debounced Firebase listener
-    let updateTimeout;
-
-    window.firebaseDb.addEventListener('data_updated', (e) => {
-        clearTimeout(updateTimeout);
-
-        updateTimeout = setTimeout(() => {
-            const data = e.detail;
-            console.log("Live Grid Data:", data.plantation_grid);
-            updateGrid(data.plantation_grid);
-        }, 50);
+      rowEl.appendChild(cell);
     });
-});
+  });
+
+  // Column headers (built once after first row is populated)
+  buildColHeaders(ROW_SIZE);
+}
+
+/** Build numeric column headers (runs once) */
+function buildColHeaders(count) {
+  const ch = document.getElementById('colHeaders');
+  if (!ch || ch.children.length > 0) return;
+  for (let i = 1; i <= count; i++) {
+    const d = document.createElement('div');
+    d.className = 'col-header';
+    d.textContent = i;
+    ch.appendChild(d);
+  }
+}
+
+/** Wipe the grid DOM completely (used on tracker reset) */
+function clearGrid() {
+  if (!gridEl) return;
+  console.warn(`${LIVE_VIEW_LOG} clearGrid called`);
+  gridEl.innerHTML = '';
+  const ch = document.getElementById('colHeaders');
+  if (ch) ch.innerHTML = '';
+  if (emptyEl) emptyEl.style.display = 'block';
+}
+
+// ─── Firebase event handler ──────────────────────────────────────────────────
+
+function handleDataUpdate(event) {
+  const payload = event.detail ?? {};
+  console.log(`${LIVE_VIEW_LOG} data_updated event`, payload);
+
+  // Remember if we had data before this update
+  const before = tracker.getSnapshot();
+  const hadData = before.total > 0;
+  console.log(`${LIVE_VIEW_LOG} before snapshot`, before);
+
+  // Run through tracker — this is where the plantation_grid logic lives
+  const snapshot = tracker.processUpdate(payload);
+  console.log(`${LIVE_VIEW_LOG} after processUpdate`, snapshot);
+
+  // If saplings decreased → tracker reset → clear DOM too
+  const wasReset = hadData && snapshot.total === 0;
+  if (wasReset) {
+    console.warn(`${LIVE_VIEW_LOG} detected reset after update`, {
+      hadData,
+      beforeTotal: before.total,
+      afterTotal: snapshot.total
+    });
+  }
+  if (wasReset) clearGrid();
+
+  // Render incremental changes
+  renderGrid(snapshot.grid);
+
+  // Refresh stat pills
+  updateStrip();
+}
+
+// ─── Wire up ─────────────────────────────────────────────────────────────────
+
+if (window.firebaseDb) {
+  console.log(`${LIVE_VIEW_LOG} binding data_updated listener (firebaseDb already available)`);
+  window.firebaseDb.addEventListener('data_updated', handleDataUpdate);
+} else {
+  // Fallback: wait for firebaseDb to be attached
+  window.addEventListener('load', () => {
+    console.log(`${LIVE_VIEW_LOG} load event, checking firebaseDb`);
+    if (window.firebaseDb) {
+      console.log(`${LIVE_VIEW_LOG} binding data_updated listener after load`);
+      window.firebaseDb.addEventListener('data_updated', handleDataUpdate);
+    } else {
+      console.error(`${LIVE_VIEW_LOG} firebaseDb is still unavailable on load`);
+    }
+  });
+}
